@@ -6,7 +6,6 @@
   "author": "Stas Krylov",
   "license": "MIT",
   "main": "dist-electron/main.js",
-  "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:preload\" \"vite\"",
     "dev:preload": "esbuild electron/preload.ts --bundle --platform=node --target=node16 --outdir=dist-electron --format=cjs --external:electron --watch",
@@ -101,7 +100,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "stskr",
+      "owner": "Skale-Club",
       "repo": "sublibr"
     }
   }
