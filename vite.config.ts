@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron'
-import renderer from 'vite-plugin-electron-renderer'
 
 export default defineConfig({
   plugins: [
@@ -15,8 +14,18 @@ export default defineConfig({
         vite: {
           build: {
             outDir: 'dist-electron',
+            lib: {
+              entry: 'electron/main.ts',
+              formats: ['cjs'],
+              fileName: () => '[name].js',
+            },
             rollupOptions: {
               external: ['electron', 'electron-store', 'electron-updater', '@ffmpeg-installer/ffmpeg', '@ffprobe-installer/ffprobe', 'fluent-ffmpeg'],
+              output: {
+                entryFileNames: '[name].js',
+                chunkFileNames: '[name]-[hash].js',
+                interop: 'auto',
+              },
             },
           },
         },
@@ -43,7 +52,6 @@ export default defineConfig({
         },
       },
     ]),
-    renderer(),
   ],
   build: {
     rollupOptions: {

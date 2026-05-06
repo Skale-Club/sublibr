@@ -10,8 +10,8 @@ import Store from 'electron-store';
 import ffmpeg from 'fluent-ffmpeg';
 import { WHISPER_PUNCTUATION_PROMPT } from '../src/prompts/whisper';
 import { createRequire } from 'module';
-import pkg from 'electron-updater';
-const { autoUpdater } = pkg;
+import type pkg from 'electron-updater';
+let autoUpdater: typeof pkg.autoUpdater | undefined;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -288,6 +288,9 @@ app.on('activate', () => {
 
 // Only enable auto-updates in packaged builds (not during development)
 if (app.isPackaged) {
+  // Lazy require so electron-updater isn't initialized in dev (it tries to read app version eagerly)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  autoUpdater = (require('electron-updater') as typeof pkg).autoUpdater;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
@@ -661,7 +664,7 @@ ipcMain.handle('app:getVersion', () => {
 });
 
 ipcMain.handle('app:checkForUpdates', async () => {
-  if (!app.isPackaged) return { updateAvailable: false };
+  if (!app.isPackaged || !autoUpdater) return { updateAvailable: false };
   try {
     const result = await autoUpdater.checkForUpdates();
     return { updateAvailable: !!result?.updateInfo };
@@ -671,12 +674,12 @@ ipcMain.handle('app:checkForUpdates', async () => {
 });
 
 ipcMain.handle('app:downloadUpdate', async () => {
-  if (!app.isPackaged) return;
+  if (!app.isPackaged || !autoUpdater) return;
   await autoUpdater.downloadUpdate();
 });
 
 ipcMain.handle('app:installUpdate', () => {
-  autoUpdater.quitAndInstall(false, true);
+  autoUpdater?.quitAndInstall(false, true);
 });
 
 // ============== AI API Proxy ==============
@@ -862,7 +865,8 @@ ipcMain.handle('ai:callProvider', async (
         formData.append('timestamp_granularities[]', 'word');
 
         if (language) {
-          formData.append('language', language);
+          // OpenAI Whisper requires ISO-639-1 (2-letter) — strip any regional suffix like "pt-BR" → "pt"
+          formData.append('language', language.split('-')[0]);
         }
 
         // We can't pass the full complex prompt to Whisper in the same way, 

@@ -30,7 +30,42 @@ export async function testApiKey(
     provider: AIProvider,
     apiKey: string,
 ): Promise<{ ok: boolean; error?: string }> {
-    return window.electronAPI.testApiKey(provider, apiKey);
+    if (typeof window !== 'undefined' && window.electronAPI?.testApiKey) {
+        return window.electronAPI.testApiKey(provider, apiKey);
+    }
+    return testApiKeyDirect(provider, apiKey);
+}
+
+async function testApiKeyDirect(
+    provider: AIProvider,
+    apiKey: string,
+): Promise<{ ok: boolean; error?: string }> {
+    try {
+        if (provider === 'gemini') {
+            const res = await fetch(
+                'https://generativelanguage.googleapis.com/v1beta/models',
+                { headers: { 'x-goog-api-key': apiKey } },
+            );
+            if (!res.ok) {
+                const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+                return { ok: false, error: err.error?.message || `HTTP ${res.status}` };
+            }
+            return { ok: true };
+        }
+        if (provider === 'openai') {
+            const res = await fetch('https://api.openai.com/v1/models', {
+                headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (!res.ok) {
+                const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+                return { ok: false, error: err.error?.message || `HTTP ${res.status}` };
+            }
+            return { ok: true };
+        }
+        return { ok: false, error: `Unknown provider: ${provider}` };
+    } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
 }
 
 // --- Provider Dispatch (proxied via main process) ---
